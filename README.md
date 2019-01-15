@@ -16,7 +16,13 @@ install -D -m=0775 weidu-linux/weidu-linux /usr/bin/weidu-linux
 # Usage
 exactly the same as weidu, because it invokes weidu itself
 
-# Options
-* `WEIDU_NOCLEAN=1`
-** Doesn't remove the symlinks after symlinking
+# Env Variables
+```
+WEIDU_NOCLEAN
+=============
+Default: 0
+Enabled: 1
+
+when enabled, weidu-linux will not remove the symlinks after symlinking
+```
 
