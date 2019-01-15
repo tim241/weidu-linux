@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+
+if [ "$WEIDU_NOCLEAN" != "1" ]
+then
+    # remove symlinks when control+c is pressed
+    trap remove_symlinks INT
+fi
+
+game_dir="$(pwd)"
+game_symlink_file="$game_dir/.linux/files"
+
+# create dir
+game_symlink_file_dir="$(dirname "$game_symlink_file")"
+if [ ! -d "$game_symlink_file_dir" ]
+then
+    mkdir -p "$game_symlink_file_dir"
+fi
+
+function create_symlinks()
+{
+    type="$1"
+    while read -r line
+    do
+        if [ "$game_dir" = "$line" ]
+        then
+            continue
+        fi
+        
+        # strip pwd from var
+        line="${line/$(pwd)}"
+            
+        # if directory is already lowercase, skip it
+        if [ "$line" = "${line,,}" ]
+        then
+            continue
+        fi
+        
+        # skip if basename is lowercase
+        base_line="$(basename "$line")"
+        if [ "$base_line" = "${base_line,,}" ]
+        then
+            continue
+        fi
+
+        # full path
+        full_line="$game_dir$line"
+        lower_line="$game_dir${line,,}"
+        
+        # skip if it already exists
+        if [ -h "$lower_line" ]
+        then
+            continue
+        fi
+
+        # symlink
+        ln -s "$full_line" "$lower_line"
+
+        # add to list
+        echo "$lower_line" >> "$game_symlink_file"
+
+    done < <(find "$game_dir" -type $type)
+}
+
+function remove_symlinks()
+{
+    if [ "$WEIDU_NOCLEAN" = "1" ]
+    then
+        return
+    fi
+
+    if [ ! -f "$game_symlink_file" ]
+    then
+        return
+    fi
+
+    while read -r line
+    do
+        # make 100% sure the file is a symlink
+        if [ -h "$line" ]
+        then
+            rm "$line"
+        fi
+    done < "$game_symlink_file"
+
+    rm "$game_symlink_file"
+}
+
+# verify that we're in the right directory
+game_dirs=("$game_dir/data"
+           "$game_dir/lang"
+           "$game_dir/movies")
+
+found=yes
+for dir in "${game_dirs[@]}"
+do
+    if [ ! -d "$dir" ]
+    then
+        found=no
+        break
+    fi
+done
+
+if [ "$found" = "no" ]
+then
+    echo "Currently not in game directory!"
+    exit 1
+fi
+
+
+# if symlink file is not removed, clean everything up
+if [ -f "$game_symlink_file" ]
+then
+    remove_symlinks
+fi
+
+# if no arguments have been given, just show execute weidu
+if [ ! "$1" ]
+then
+    weidu
+    exit
+fi
+
+# create symlinks for directories
+create_symlinks d
+
+# create symlinks for files
+create_symlinks f
+
+# execute weidu
+weidu $@
+
+# remove symlinks
+remove_symlinks
+
